@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:youtube_downloader/page/YoutubeDownloaderPage.dart';
+import 'package:youtube_downloader/pages/youtube_downloader_page.dart';
 import 'package:youtube_downloader/util/Injector.dart';
 
 void main() async {

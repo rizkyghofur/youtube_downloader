@@ -1,3 +1,3 @@
 class Constants {
-  static const url = "https://api.akuari.my.id/downloader/yt1?link=";
+  static const url = "https://api.ryzendesu.vip/api/downloader/y2mate?url=";
 }

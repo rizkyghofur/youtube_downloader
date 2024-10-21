@@ -1,13 +1,13 @@
 import 'package:dio/dio.dart';
+import 'package:dio_logging_interceptor_v2/dio_logging_interceptor_v2.dart';
 import 'package:get_it/get_it.dart';
-import 'package:dio_logging_interceptor/dio_logging_interceptor.dart';
 
 GetIt locator = GetIt.instance;
 
 Future baseDio() async {
   final options = BaseOptions(
-    connectTimeout: 300000,
-    receiveTimeout: 300000,
+    connectTimeout: Duration(milliseconds: 300000),
+    receiveTimeout: Duration(milliseconds: 300000),
   );
 
   var dio = Dio(options);

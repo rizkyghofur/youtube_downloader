@@ -1,12 +1,14 @@
 import 'package:dio/dio.dart';
-import 'package:downloads_path_provider/downloads_path_provider.dart';
 import 'package:flutter/material.dart';
-import 'package:youtube_downloader/repository/GetYoutubeMedaData.dart';
-import 'package:youtube_downloader/util/Injector.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import '../models/response/youtube_downloader_response.dart';
+import '../repository/youtube_downloader_repository.dart';
+import '../util/Injector.dart';
+
 class YoutubeDownloaderPage extends StatefulWidget {
-  YoutubeDownloaderPage({Key key}) : super(key: key);
+  YoutubeDownloaderPage({Key? key}) : super(key: key);
 
   @override
   State<YoutubeDownloaderPage> createState() => _YoutubeDownloaderPageState();
@@ -15,20 +17,22 @@ class YoutubeDownloaderPage extends StatefulWidget {
 class _YoutubeDownloaderPageState extends State<YoutubeDownloaderPage> {
   final Dio dio = locator<Dio>();
   TextEditingController _controller = TextEditingController();
-  GetYoutubeMedaData getYoutubeMedaData = GetYoutubeMedaData();
-  String thumbb = "";
-  String title;
-  String resultInMp3;
-  String resultInMp4;
-  String qualityInMp3;
-  String qualityInMp4;
-  String sizeInMp3;
-  String sizeInMp4;
-  String progress = "";
-  bool isLoading = false;
-  bool isError = false;
-  bool isDownloadingMp3 = false;
-  bool isDownloadingMp4 = false;
+  YoutubeDownloaderRepository repository = YoutubeDownloaderRepository();
+  YoutubeDownloaderResponse youtubeDownloaderResponse =
+      YoutubeDownloaderResponse();
+  String thumbb = "",
+      title = "",
+      resultInMp3 = "",
+      resultInMp4 = "",
+      qualityInMp3 = "",
+      qualityInMp4 = "",
+      sizeInMp3 = "",
+      sizeInMp4 = "",
+      progress = "";
+  bool isLoading = false,
+      isError = false,
+      isDownloadingMp3 = false,
+      isDownloadingMp4 = false;
 
   void searchData(String url) async {
     setState(() {
@@ -36,20 +40,18 @@ class _YoutubeDownloaderPageState extends State<YoutubeDownloaderPage> {
       isError = false;
     });
 
-    await getYoutubeMedaData.getData(url).then((response) {
-      if (response != null) {
-        setState(() {
-          title = response.mp3.title;
-          resultInMp3 = response.mp3.result;
-          resultInMp4 = response.mp4.result;
-          qualityInMp3 = response.mp3.quality;
-          qualityInMp4 = response.mp4.quality;
-          sizeInMp3 = response.mp3.size;
-          sizeInMp4 = response.mp4.size;
-          thumbb = response.mp3.thumbb;
-          isLoading = false;
-        });
-      }
+    await repository.getData(url).then((response) {
+      setState(() {
+        title = response.download!.title ?? "";
+        resultInMp3 = response.download!.dl!.smp3!.s128kbps!.url ?? "";
+        resultInMp4 = response.download!.dl!.smp4!.s720p!.url ?? "";
+        qualityInMp3 = "128kbps";
+        qualityInMp4 = "720p";
+        sizeInMp3 = response.download!.dl!.smp3!.s128kbps!.size ?? "";
+        sizeInMp4 = response.download!.dl!.smp4!.s720p!.size ?? "";
+        thumbb = response.download!.thumbnail ?? "";
+        isLoading = false;
+      });
     }).onError((error, stackTrace) {
       setState(() {
         isLoading = false;
@@ -73,8 +75,8 @@ class _YoutubeDownloaderPageState extends State<YoutubeDownloaderPage> {
       if (!status.isGranted) {
         await Permission.storage.request();
       }
-      var directory = await DownloadsPathProvider.downloadsDirectory;
-      print("${directory.path}/" +
+      var directory = await getDownloadsDirectory();
+      print("${directory!.path}/" +
           trackName
               .replaceAll(new RegExp(r'[^\w\s]+'), '')
               .split(" ")
@@ -157,19 +159,24 @@ class _YoutubeDownloaderPageState extends State<YoutubeDownloaderPage> {
                         padding: const EdgeInsets.all(8.0),
                         child: Column(
                           children: [
-                            FadeInImage.assetNetwork(
-                              placeholder: 'assets/images/placeholder.png',
-                              image: thumbb,
-                              height: 150,
-                              width: 350,
-                            ),
+                            thumbb == ""
+                                ? Image.asset(
+                                    'assets/images/placeholder.png',
+                                    height: 150,
+                                    width: 350,
+                                  )
+                                : FadeInImage.assetNetwork(
+                                    placeholder:
+                                        'assets/images/placeholder.png',
+                                    image: thumbb,
+                                    height: 150,
+                                    width: 350,
+                                  ),
                             SizedBox(
                               height: 10,
                             ),
                             Text(
-                              title == null
-                                  ? 'Nothing\'s here'
-                                  : 'Title: $title',
+                              title == "" ? 'Nothing\'s here' : 'Title: $title',
                               textAlign: TextAlign.center,
                               style: TextStyle(fontSize: 16),
                             ),
@@ -177,9 +184,7 @@ class _YoutubeDownloaderPageState extends State<YoutubeDownloaderPage> {
                               height: 10,
                             ),
                             Visibility(
-                              visible: sizeInMp3 == null || sizeInMp3 == ""
-                                  ? false
-                                  : true,
+                              visible: sizeInMp3 == "" ? false : true,
                               child: TextButton(
                                 child: Text(
                                   isDownloadingMp3
@@ -189,14 +194,13 @@ class _YoutubeDownloaderPageState extends State<YoutubeDownloaderPage> {
                                   style: TextStyle(fontSize: 14),
                                 ),
                                 style: ButtonStyle(
-                                  padding:
-                                      MaterialStateProperty.all<EdgeInsets>(
+                                  padding: WidgetStateProperty.all<EdgeInsets>(
                                     EdgeInsets.all(15),
                                   ),
                                   foregroundColor:
-                                      MaterialStateProperty.all<Color>(
+                                      WidgetStateProperty.all<Color>(
                                           Colors.red),
-                                  shape: MaterialStateProperty.all<
+                                  shape: WidgetStateProperty.all<
                                       RoundedRectangleBorder>(
                                     RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(18.0),
@@ -216,9 +220,7 @@ class _YoutubeDownloaderPageState extends State<YoutubeDownloaderPage> {
                               height: 10,
                             ),
                             Visibility(
-                              visible: sizeInMp4 == null || sizeInMp4 == ""
-                                  ? false
-                                  : true,
+                              visible: sizeInMp4 == "" ? false : true,
                               child: TextButton(
                                 child: Text(
                                   isDownloadingMp4
@@ -228,14 +230,13 @@ class _YoutubeDownloaderPageState extends State<YoutubeDownloaderPage> {
                                   style: TextStyle(fontSize: 14),
                                 ),
                                 style: ButtonStyle(
-                                  padding:
-                                      MaterialStateProperty.all<EdgeInsets>(
+                                  padding: WidgetStateProperty.all<EdgeInsets>(
                                     EdgeInsets.all(15),
                                   ),
                                   foregroundColor:
-                                      MaterialStateProperty.all<Color>(
+                                      WidgetStateProperty.all<Color>(
                                           Colors.red),
-                                  shape: MaterialStateProperty.all<
+                                  shape: WidgetStateProperty.all<
                                       RoundedRectangleBorder>(
                                     RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(18.0),
@@ -255,9 +256,7 @@ class _YoutubeDownloaderPageState extends State<YoutubeDownloaderPage> {
                               height: 10,
                             ),
                             Visibility(
-                              visible: progress == null || progress == ""
-                                  ? false
-                                  : true,
+                              visible: progress == "" ? false : true,
                               child: Text(
                                 'Download Progress: $progress',
                                 textAlign: TextAlign.center,
